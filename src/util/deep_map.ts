@@ -136,6 +136,7 @@ export function deepZip(
 function deepZipInternal(
     inputs: any[], zipFn: (xs: any[]) => DeepMapResult,
     containedIn: Set<{}> = new Set()): any|any[] {
+  console.log('deepzip internal', inputs.length);
   // The recursion follows the structure of input 0; it's assumed that all the
   // other inputs have the same structure.
   const input = inputs[0];
@@ -174,6 +175,7 @@ export function zipToList(x: any[]): DeepMapResult {
   }
   // TODO(soergel): validate array type?
 
+  console.log('ziptolist', x);
   if (isIterable(x[0])) {
     return {value: null, recurse: true};
   } else {

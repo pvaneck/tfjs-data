@@ -941,4 +941,33 @@ describeWithFlags(
              done();
            }
          });
+
+      it('batch correctly for dataset created from generator', async () => {
+        function getIterator() {
+          let i = 0;
+          return {
+            next: () => {
+              const x = [i, i, i, i];
+              const y = [i];
+              i++;
+              return {value: {xs: x, ys: y}, done: i === 10};
+            }
+          };
+        }
+
+        // This doesn't seem to terminate properly.
+        const ds = tfd.generator(getIterator).batch(2, true);
+
+        const ITER_MAX =
+            15;  // Added this so that it won't run into a dead loop.
+        const iter = await ds.iterator();
+        for (let i = 0; i < ITER_MAX; ++i) {
+          const item = await iter.next();
+          console.log(item.done, item.value);
+          (item.value as {xs: tf.Tensor, ys: tf.Tensor}).xs.print();
+          if (item.done) {
+            break;
+          }
+        }
+      });
     });

@@ -166,8 +166,11 @@ export abstract class LazyIterator<T> {
   async toArray(): Promise<T[]> {
     const result: T[] = [];
     let x = await this.next();
-    while (!x.done) {
+    while (x.value != null) {
       result.push(x.value);
+      if (x.done) {
+        break;
+      }
       x = await this.next();
     }
     return result;
@@ -185,14 +188,7 @@ export abstract class LazyIterator<T> {
    *   when the stream is exhausted.
    */
   async toArrayForTest(): Promise<T[]> {
-    const stream = this.prefetch(100);
-    const result: T[] = [];
-    let x = await stream.next();
-    while (!x.done) {
-      result.push(x.value);
-      x = await stream.next();
-    }
-    return result;
+    return this.prefetch(100).toArray();
   }
 
   /**
@@ -640,20 +636,23 @@ class RowMajorBatchIterator<T> extends LazyIterator<T[]> {
     // would not work because this.nextRead would be updated only after the
     // promise resolves.
     this.lastRead = this.lastRead.then(() => this.serialNext());
-    return this.lastRead;
+    const result = await this.lastRead;
+    return result;
   }
 
   private async serialNext(): Promise<IteratorResult<T[]>> {
     const batch: T[] = [];
     while (batch.length < this.batchSize) {
       const item = await this.upstream.next();
+      if (item.value != null) {
+        batch.push(item.value);
+      }
       if (item.done) {
         if (this.enableSmallLastBatch && batch.length > 0) {
-          return {value: batch, done: false};
+          return {value: batch, done: true};
         }
         return {value: null, done: true};
       }
-      batch.push(item.value);
     }
     return {value: batch, done: false};
   }
