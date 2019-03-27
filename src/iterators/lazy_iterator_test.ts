@@ -23,7 +23,7 @@ export class TestIntegerIterator extends LazyIterator<number> {
   currentIndex = 0;
   data: number[];
 
-  constructor(protected readonly length = 8) {
+  constructor(protected readonly length = 100) {
     super();
     this.data = Array.from({length}, (v, k) => k);
   }
@@ -158,15 +158,14 @@ describe('LazyIterator', () => {
     expect(result[12]).toEqual([96, 97, 98, 99]);
   });
 
-  fit('batches elements to a column-major representation', async () => {
-    const readIterator = new TestIntegerIterator().columnMajorBatch(5);
-    const result = await readIterator.toArray();
+  it('batches elements to a column-major representation', async () => {
+    const readIterator = new TestIntegerIterator().columnMajorBatch(8);
+    const result = await readIterator.toArrayForTest();
     expect(result.length).toEqual(13);
-    // for (let i = 0; i < 12; i++) {
-    //   expect(result[i]).toEqual(Array.from({length: 8}, (v, k) => (i * 8) +
-    //   k));
-    // }
-    // expect(result[12]).toEqual([96, 97, 98, 99]);
+    for (let i = 0; i < 12; i++) {
+      expect(result[i]).toEqual(Array.from({length: 8}, (v, k) => (i * 8) + k));
+    }
+    expect(result[12]).toEqual([96, 97, 98, 99]);
   });
 
   it('can be limited to a certain number of elements', async () => {
@@ -348,7 +347,7 @@ describe('LazyIterator', () => {
     expect(result).toEqual(expectedResult);
   });
 
-  it('can be created by zipping an array of streams', async () => {
+  fit('can be created by zipping an array of streams', async () => {
     const a = new TestIntegerIterator();
     const b = new TestIntegerIterator().map(x => x * 10);
     const c = new TestIntegerIterator().map(x => `string ${x}`);

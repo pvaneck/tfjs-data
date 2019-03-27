@@ -707,7 +707,7 @@ class MapIterator<I, O> extends LazyIterator<O> {
 
   async next(): Promise<IteratorResult<O>> {
     const item = await this.upstream.next();
-    if (item.done) {
+    if (item.value == null && item.done) {
       return {value: null, done: true};
     }
     const inputTensors = tf.tensor_util.getTensorsInContainer(item.value as {});
@@ -727,7 +727,7 @@ class MapIterator<I, O> extends LazyIterator<O> {
         t.dispose();
       }
     }
-    return {value: mapped, done: false};
+    return {value: mapped, done: item.done};
   }
 }
 
@@ -788,7 +788,7 @@ class AsyncMapIterator<I, O> extends LazyIterator<O> {
 
   async next(): Promise<IteratorResult<O>> {
     const item = await this.upstream.next();
-    if (item.done) {
+    if (item.value == null && item.done) {
       return {value: null, done: true};
     }
     const inputTensors = tf.tensor_util.getTensorsInContainer(item.value as {});
@@ -808,7 +808,7 @@ class AsyncMapIterator<I, O> extends LazyIterator<O> {
         t.dispose();
       }
     }
-    return {value: mapped, done: false};
+    return {value: mapped, done: item.done};
   }
 }
 
@@ -886,7 +886,7 @@ class FlatmapIterator<I, O> extends OneToManyIterator<O> {
 
   async pump(): Promise<boolean> {
     const item = await this.upstream.next();
-    if (item.done) {
+    if (item == null && item.done) {
       return false;
     }
     const inputTensors = tf.tensor_util.getTensorsInContainer(item.value as {});
@@ -908,7 +908,7 @@ class FlatmapIterator<I, O> extends OneToManyIterator<O> {
       }
     }
 
-    return true;
+    return !item.done;
   }
 }
 
@@ -1035,6 +1035,7 @@ class ZipIterator<O extends DataElement> extends LazyIterator<O> {
     // getNext()
     let numIterators = 0;
     let iteratorsDone = 0;
+    let iteratorsNull = 0;
 
     function getNext(container: IteratorContainer): DeepMapAsyncResult {
       if (container instanceof LazyIterator) {
@@ -1044,6 +1045,9 @@ class ZipIterator<O extends DataElement> extends LazyIterator<O> {
             numIterators++;
             if (x.done) {
               iteratorsDone++;
+            }
+            if (x.value) {
+              iteratorsNull++;
             }
             return x.value;
           }),
@@ -1056,9 +1060,10 @@ class ZipIterator<O extends DataElement> extends LazyIterator<O> {
 
     const mapped: O = await deepMapAndAwaitAll(this.iterators, getNext);
 
-    if (numIterators === iteratorsDone) {
+    console.log(iteratorsDone, iteratorsNull, numIterators);
+    if (numIterators === iteratorsDone && numIterators === iteratorsNull) {
       // The streams have all ended.
-      return {value: null, done: true};
+      return {value: mapped, done: true};
     }
     if (iteratorsDone > 0) {
       switch (this.mismatchMode) {
